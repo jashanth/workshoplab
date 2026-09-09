@@ -6,7 +6,7 @@ import LoginScreen from './components/LoginScreen';
 import Desktop from './components/Desktop';
 
 export const App: React.FC = () => {
-  const { phase, settings, updateSystemStats, setSessionState } = useStore();
+  const { phase, updateSystemStats, setSessionState } = useStore();
 
   // Initialize session manager
   useEffect(() => {
@@ -51,15 +51,7 @@ export const App: React.FC = () => {
   }, [updateSystemStats]);
 
   return (
-    <div
-      className="w-screen h-screen overflow-hidden select-none bg-black"
-      style={{
-        transform: `scale(${settings.uiScale})`,
-        transformOrigin: 'top left',
-        width: `${100 / settings.uiScale}vw`,
-        height: `${100 / settings.uiScale}vh`,
-      }}
-    >
+    <div className="w-screen h-screen overflow-hidden select-none bg-black">
       {phase === 'boot' && <BootScreen />}
       {phase === 'login' && <LoginScreen />}
       {phase === 'desktop' && <Desktop />}

@@ -50,7 +50,7 @@ export default function Desktop() {
     // Subscribe to filesystem changes
     const unsubscribe = filesystemEvents.subscribe((event) => {
       // Reload if change affects Desktop
-      if (event.path.startsWith('/home/kali/Desktop')) {
+      if (event.path === '/' || event.path.startsWith('/home/kali/Desktop')) {
         loadDesktopFiles();
       }
     });
@@ -309,7 +309,7 @@ export default function Desktop() {
       <TopPanel />
 
       {/* Main Desktop Area */}
-      <div className="relative flex-1 p-4 pb-20 overflow-hidden">
+      <div className="relative flex-1 p-4 pt-12 pb-20 overflow-hidden">
         {/* Desktop Icons Grid */}
         <div className="grid grid-flow-col grid-rows-6 gap-3 w-max select-none z-10 relative">
           {/* Application Icons */}

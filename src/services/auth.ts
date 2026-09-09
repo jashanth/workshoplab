@@ -19,8 +19,8 @@ export class AuthService {
   // kali -> computed hash
   // toor -> computed hash
   private static validCredentialHashes: Record<string, string> = {
-    'kali': '30b573',
-    'root': '366c86',
+    'kali': '0000000000000000000000000000000000000000000000000000000000321d53',
+    'root': '000000000000000000000000000000000000000000000000000000000036699e',
   };
 
   private static computeHash(password: string): string {

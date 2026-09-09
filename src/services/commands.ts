@@ -706,6 +706,13 @@ export class CommandInterpreter {
       case 'git':
         return ['git version 2.40.1', 'usage: git [--version] [--help] [-C <path>] <command> [<args>]'];
 
+      case 'reboot':
+      case 'shutdown':
+      case 'poweroff': {
+        // Signal VM action to caller; do NOT output internal marker
+        return [];
+      }
+
       case 'nano':
       case 'vim':
       case 'vi':

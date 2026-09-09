@@ -7,6 +7,7 @@ import { sessionManager } from '../../services/session';
 import CommandInterpreter from '../../services/commands';
 import { getFileSystem, saveFileSystem } from '../../store/filesystem-store';
 import { terminalThemes } from '../../services/terminal-themes';
+import { restartVM, shutdownVM } from '../../services/vm-actions';
 
 export default function XTerminal() {
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -195,7 +196,31 @@ export default function XTerminal() {
       return;
     }
 
+    const trimmed = command.trim();
+    let eventType: 'create' | 'update' | 'delete' | 'rename' | undefined;
+    let eventPath: string | undefined;
+    const cwd = commandInterpreterRef.current.getCwd();
+
+    if (trimmed.startsWith('mkdir ')) {
+      eventType = 'create';
+      eventPath = cwd + '/' + trimmed.split(' ')[1];
+    } else if (trimmed.startsWith('touch ')) {
+      eventType = 'create';
+      eventPath = cwd + '/' + trimmed.split(' ')[1];
+    } else if (trimmed.startsWith('rm ')) {
+      eventType = 'delete';
+      const pathPart = trimmed.split(' ')[1];
+      if (pathPart) eventPath = cwd + '/' + pathPart;
+    } else if (trimmed.includes('>')) {
+      eventType = 'update';
+      eventPath = cwd + '/' + trimmed.split('>')[0].trim();
+    }
+
     const output = commandInterpreterRef.current.execute(command);
+
+    // Detect simulated power commands by inspecting the original trimmed command
+    const isReboot = /^(sudo\s+)?reboot$/i.test(trimmed);
+    const isShutdown = /^(sudo\s+)?shutdown(\s+now)?$/i.test(trimmed);
 
     // Update cwd from interpreter
     const newCwd = commandInterpreterRef.current.getCwd();
@@ -204,15 +229,25 @@ export default function XTerminal() {
     }
 
     output.forEach((line) => {
-      // Color error lines
-      if (line.startsWith('bash:') || line.startsWith('ls:') || line.includes(': command not found')) {
+      // Color error lines (skip empty lines from power commands)
+      if (line && (line.startsWith('bash:') || line.startsWith('ls:') || line.includes(': command not found'))) {
         terminal.writeln(`\x1b[31m${line}\x1b[0m`);
-      } else {
+      } else if (line) {
         terminal.writeln(line);
       }
     });
 
-    saveFileSystem();
+    if (isReboot) {
+      restartVM();
+      return;
+    }
+
+    if (isShutdown) {
+      shutdownVM();
+      return;
+    }
+
+    saveFileSystem(eventType, eventPath);
     writePrompt(terminal);
   };
 

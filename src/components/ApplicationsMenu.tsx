@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store';
+import { restartVM, shutdownVM } from '../services/vm-actions';
 
 interface AppItem {
   id: string;
@@ -114,7 +115,6 @@ export default function ApplicationsMenu({ isOpen, onClose }: ApplicationsMenuPr
 
   const openWindow = useStore((s) => s.openWindow);
   const activeWorkspace = useStore((s) => s.activeWorkspace);
-  const setPhase = useStore((s) => s.setPhase);
 
   if (!isOpen) return null;
 
@@ -217,7 +217,7 @@ export default function ApplicationsMenu({ isOpen, onClose }: ApplicationsMenuPr
         <div className="flex gap-1">
           <button
             onClick={() => {
-              setPhase('login');
+              shutdownVM();
               onClose();
             }}
             className="p-1.5 hover:bg-white/10 rounded text-kali-text/70 hover:text-kali-text"
@@ -227,7 +227,7 @@ export default function ApplicationsMenu({ isOpen, onClose }: ApplicationsMenuPr
           </button>
           <button
             onClick={() => {
-              setPhase('boot');
+              restartVM();
               onClose();
             }}
             className="p-1.5 hover:bg-white/10 rounded text-kali-text/70 hover:text-kali-text"

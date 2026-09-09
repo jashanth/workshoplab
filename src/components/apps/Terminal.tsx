@@ -5,6 +5,7 @@ import { terminalThemes } from '../../services/terminal-themes';
 import CommandInterpreter from '../../services/commands';
 import { ShellStack } from '../../services/shell-state';
 import { AuthService } from '../../services/auth';
+import { restartVM, shutdownVM } from '../../services/vm-actions';
 import type { TerminalLine } from '../../types';
 
 export default function Terminal() {
@@ -195,6 +196,9 @@ export default function Terminal() {
     // Execute command
     const output = commandInterpreterRef.current.execute(trimmed);
 
+    const isReboot = /^(sudo\s+)?reboot$/i.test(trimmed);
+    const isShutdown = /^(sudo\s+)?shutdown(\s+now)?$/i.test(trimmed);
+
     // Handle special outputs
     if (output.length === 1 && output[0] === '__CLEAR__') {
       setLines([]);
@@ -211,6 +215,16 @@ export default function Terminal() {
           closeWindow(activeWin.id);
         }
       }
+      return;
+    }
+
+    if (isReboot) {
+      restartVM();
+      return;
+    }
+
+    if (isShutdown) {
+      shutdownVM();
       return;
     }
 

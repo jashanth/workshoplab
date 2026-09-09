@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { getFileSystem, saveFileSystem } from '../../store/filesystem-store';
+import { filesystemEvents } from '../../services/filesystem-events';
 import type { FSNode } from '../../types';
 
 interface FileManagerProps {
@@ -33,14 +34,14 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
   } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const fs = getFileSystem();
+  const fsRef = useRef(getFileSystem());
   const openWindow = useStore((state) => state.openWindow);
   const addNotification = useStore((state) => state.addNotification);
 
   const loadDirectory = (path: string) => {
     try {
-      const resolved = fs.resolve(path);
-      const detailed = fs.lsDetailed(resolved);
+      const resolved = fsRef.current.resolve(path);
+      const detailed = fsRef.current.lsDetailed(resolved);
       setItems(detailed);
       setSelectedItems([]);
     } catch (e: any) {
@@ -49,6 +50,16 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
         message: e?.message || 'Failed to read directory',
         type: 'error',
       });
+      setItems([]);
+      setSelectedItems([]);
+
+      // If the open directory was removed externally, return to its parent.
+      const parentPath = fsRef.current.resolve(`${path}/..`);
+      if (parentPath !== path && fsRef.current.isDirectory(parentPath)) {
+        setCurrentPath(parentPath);
+        setHistory([parentPath]);
+        setHistoryIndex(0);
+      }
     }
   };
 
@@ -56,10 +67,22 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
     loadDirectory(currentPath);
   }, [currentPath]);
 
+  // Subscribe to filesystem changes to reload if current dir affected
+  useEffect(() => {
+    const unsubscribe = filesystemEvents.subscribe((event) => {
+      if (event.path === currentPath || event.path.startsWith(currentPath + '/') || currentPath.startsWith(event.path)) {
+        loadDirectory(currentPath);
+      }
+    });
+    return unsubscribe;
+  }, [currentPath]);
+
   const navigateTo = (newPath: string) => {
     try {
-      const resolved = fs.resolve(newPath);
-      if (!fs.isDirectory(resolved)) return;
+      const resolved = fsRef.current.resolve(newPath);
+      if (!fsRef.current.isDirectory(resolved)) {
+        throw new Error(`ls: cannot access '${resolved}': No such file or directory`);
+      }
 
       const newHistory = history.slice(0, historyIndex + 1);
       newHistory.push(resolved);
@@ -92,12 +115,22 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
   };
 
   const goUp = () => {
-    const parentPath = fs.resolve(currentPath + '/..');
+    const parentPath = fsRef.current.resolve(currentPath + '/..');
     navigateTo(parentPath);
   };
 
   const handleItemDoubleClick = (item: FSNode) => {
-    const itemFullPath = fs.resolve(`${currentPath}/${item.name}`);
+    const itemFullPath = fsRef.current.resolve(`${currentPath}/${item.name}`);
+    if (!fsRef.current.exists(itemFullPath)) {
+      loadDirectory(currentPath);
+      addNotification({
+        title: 'File Manager Error',
+        message: `The item '${item.name}' no longer exists.`,
+        type: 'error',
+      });
+      return;
+    }
+
     if (item.type === 'directory') {
       navigateTo(itemFullPath);
     } else {
@@ -135,7 +168,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
     if (!promptModal.value.trim()) return;
     try {
       const target = `${currentPath}/${promptModal.value.trim()}`;
-      fs.mkdir(target);
+      fsRef.current.mkdir(target);
       saveFileSystem();
       loadDirectory(currentPath);
       addNotification({
@@ -157,7 +190,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
     if (!promptModal.value.trim()) return;
     try {
       const target = `${currentPath}/${promptModal.value.trim()}`;
-      fs.touch(target);
+      fsRef.current.touch(target);
       saveFileSystem();
       loadDirectory(currentPath);
       addNotification({
@@ -180,7 +213,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
     try {
       const src = `${currentPath}/${promptModal.targetName}`;
       const dest = `${currentPath}/${promptModal.value.trim()}`;
-      fs.mv(src, dest);
+      fsRef.current.mv(src, dest);
       saveFileSystem();
       loadDirectory(currentPath);
       addNotification({
@@ -202,8 +235,8 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
     if (!promptModal.targetName) return;
     try {
       const target = `${currentPath}/${promptModal.targetName}`;
-      const isDir = fs.isDirectory(target);
-      fs.rm(target, isDir);
+      const isDir = fsRef.current.isDirectory(target);
+      fsRef.current.rm(target, isDir);
       saveFileSystem();
       loadDirectory(currentPath);
       addNotification({
@@ -230,7 +263,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
       try {
         const content = event.target?.result as string;
         const filePath = `${currentPath}/${file.name}`;
-        fs.writeFile(filePath, content || '');
+        fsRef.current.writeFile(filePath, content || '');
         saveFileSystem();
         loadDirectory(currentPath);
         addNotification({
@@ -253,7 +286,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ initialPath = '/home/k
   const handleDownloadFile = (fileName: string) => {
     try {
       const filePath = `${currentPath}/${fileName}`;
-      const content = fs.readFile(filePath);
+      const content = fsRef.current.readFile(filePath);
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

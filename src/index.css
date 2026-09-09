@@ -11,6 +11,14 @@
   box-sizing: border-box;
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   overflow: hidden;
@@ -22,6 +30,17 @@ body {
 #root {
   width: 100vw;
   height: 100vh;
+}
+
+.login-screen {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 /* Terminal text selection */

@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { AuthService } from '../services/auth';
+import { restartVM, shutdownVM } from '../services/vm-actions';
 
 export default function TopPanel() {
   const [time, setTime] = useState(new Date());
   const [showAppsMenu, setShowAppsMenu] = useState(false);
   const [showPowerMenu, setShowPowerMenu] = useState(false);
+  const powerMenuRef = useRef<HTMLDivElement>(null);
   const [showNetworkPopup, setShowNetworkPopup] = useState(false);
 
   const windows = useStore((s) => s.windows);
@@ -24,6 +26,20 @@ export default function TopPanel() {
     const interval = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Click-outside to close power menu
+  useEffect(() => {
+    if (!showPowerMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (powerMenuRef.current && !powerMenuRef.current.contains(e.target as Node)) {
+        setShowPowerMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPowerMenu]);
 
   const formatTime = (date: Date) => {
     return date.toLocaleString('en-US', {
@@ -103,29 +119,10 @@ export default function TopPanel() {
         setPhase('login');
         break;
       case 'restart':
-        AuthService.logout();
-        addNotification({
-          title: 'Restarting',
-          message: 'Virtual machine is restarting...',
-          type: 'info',
-        });
-        setPhase('boot');
-        setTimeout(() => setPhase('login'), 3500);
+        restartVM();
         break;
       case 'shutdown':
-        AuthService.logout();
-        addNotification({
-          title: 'Shutting Down',
-          message: 'Virtual machine is powering off...',
-          type: 'info',
-        });
-        // Show boot screen as shutdown screen
-        setPhase('boot');
-        // After 2 seconds, show the actual shutdown state
-        setTimeout(() => {
-          // You could create a shutdown phase here
-          setPhase('login');
-        }, 2000);
+        shutdownVM();
         break;
     }
   };
@@ -133,6 +130,7 @@ export default function TopPanel() {
   return (
     <>
       <div className="fixed top-0 left-0 right-0 h-8 bg-kali-panel border-b border-kali-border flex items-center justify-between px-2 z-50">
+        {/* Left section */}
         {/* Left section */}
         <div className="flex items-center gap-2">
           <button
@@ -251,7 +249,7 @@ export default function TopPanel() {
               <span className="text-base">⏻</span>
             </button>
             {showPowerMenu && (
-              <div className="absolute top-full right-0 mt-1 bg-kali-panel border border-kali-border rounded shadow-lg py-1 text-xs min-w-[140px]">
+              <div ref={powerMenuRef} className="absolute top-full right-0 mt-1 bg-kali-panel border border-kali-border rounded shadow-lg py-1 text-xs min-w-[140px]">
                 <button
                   onClick={() => handlePowerAction('lock')}
                   className="w-full px-3 py-2 hover:bg-white/10 text-left text-kali-text transition-colors"

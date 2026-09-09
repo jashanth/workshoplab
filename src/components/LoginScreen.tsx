@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { AuthService } from '../services/auth';
+import { restartVM, shutdownVM } from '../services/vm-actions';
 
 export default function LoginScreen() {
   const setPhase = useStore((s) => s.setPhase);
+  const poweredOff = useStore((s) => s.poweredOff);
+  const setPoweredOff = useStore((s) => s.setPoweredOff);
   const settings = useStore((s) => s.settings);
   const addNotification = useStore((s) => s.addNotification);
 
@@ -13,7 +16,8 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showPowerDialog, setShowPowerDialog] = useState(false);
-  const [isShutDown, setIsShutDown] = useState(false);
+
+  const powerMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -58,28 +62,39 @@ export default function LoginScreen() {
   };
 
   const handleRestart = () => {
-    setIsShutDown(false);
-    setPhase('boot');
+    setShowPowerDialog(false);
+    restartVM();
   };
 
+  // Click-outside to close power menu
+  useEffect(() => {
+    if (!showPowerDialog) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        powerMenuRef.current &&
+        !powerMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowPowerDialog(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPowerDialog]);
+
   const handleShutdown = () => {
-    AuthService.logout();
-    addNotification({
-      title: 'System Shutdown',
-      message: 'Virtual machine is shutting down...',
-      type: 'info',
-    });
-    setIsShutDown(true);
+    shutdownVM();
   };
 
   const handlePowerOn = () => {
-    setIsShutDown(false);
+    setPoweredOff(false);
     setPhase('boot');
   };
 
-  if (isShutDown) {
+  if (poweredOff) {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-gray-500 font-mono select-none z-50">
+      <div className="login-screen fixed inset-0 bg-black flex flex-col items-center justify-center text-gray-500 font-mono select-none z-50">
         <div className="text-4xl mb-4 opacity-50">⏻</div>
         <p className="text-sm mb-6">Virtual Machine is powered off.</p>
         <button
@@ -111,7 +126,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#070b19] text-gray-100 flex flex-col justify-between select-none z-50 overflow-hidden relative font-sans">
+    <div className="login-screen fixed inset-0 bg-[#070b19] text-gray-100 flex flex-col justify-between select-none z-50 overflow-hidden relative font-sans">
       {/* Background Graphic elements */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-slate-950 to-black pointer-events-none" />
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -195,7 +210,7 @@ export default function LoginScreen() {
               <input
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => { setUsername(e.target.value); setError(''); }}
                 className="w-full px-3.5 py-2 bg-black/40 border border-gray-700/80 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-mono transition-colors"
                 placeholder="kali"
                 autoComplete="username"
@@ -209,7 +224,7 @@ export default function LoginScreen() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 className="w-full px-3.5 py-2 bg-black/40 border border-gray-700/80 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-mono transition-colors"
                 placeholder="••••••••"
                 autoComplete="current-password"

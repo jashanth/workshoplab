@@ -14,6 +14,8 @@ interface StoreState {
   // App phase
   phase: AppPhase;
   setPhase: (phase: AppPhase) => void;
+  poweredOff: boolean;
+  setPoweredOff: (poweredOff: boolean) => void;
 
   // Session state (backend connection)
   sessionState: SessionState | null;
@@ -109,6 +111,8 @@ export const useStore = create<StoreState>((set, get) => ({
   // App phase
   phase: 'boot',
   setPhase: (phase) => set({ phase }),
+  poweredOff: false,
+  setPoweredOff: (poweredOff) => set({ poweredOff }),
 
   // Session state (backend connection)
   sessionState: null,

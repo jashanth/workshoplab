@@ -23,9 +23,14 @@ export function saveFileSystem(eventType?: 'create' | 'update' | 'delete' | 'ren
   if (fsInstance) {
     try {
       localStorage.setItem('kali-vm-fs', fsInstance.serialize());
-      // Emit event to notify all listeners
-      if (eventType && path) {
-        filesystemEvents.emit(eventType, path);
+      // Always emit event so all subscribers update; derive path from eventType if missing
+      const emitPath = path || (eventType ? '/' : undefined);
+      if (eventType && emitPath) {
+        filesystemEvents.emit(eventType, emitPath);
+      } else if (eventType) {
+        filesystemEvents.emit(eventType, '/');
+      } else {
+        filesystemEvents.emit('update', '/');
       }
     } catch (e) {
       console.error('Failed to save filesystem:', e);
